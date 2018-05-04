@@ -18,10 +18,5 @@ void error_out(char *message){
 
 
 void ignore_sigpipe(){
-	struct sigaction sigpipeblock;
-	sigpipeblock.sa_mask = 0;
-	sigemptyset (&sigpipeblock.sa_mask);
-	sigpipeblock.sa_handler = SIG_IGN;
-
-	if (sigaction(SIGPIPE, &sigpipeblock, NULL) == -1) perror("sigaction failed, know that some funny stuff might happen");
+	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR) perror("signal failed, know that some funny stuff might happen");
 }
