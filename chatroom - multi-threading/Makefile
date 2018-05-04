@@ -1,5 +1,5 @@
 
-CFLAGS := -Wall
+CFLAGS := -Wall -pthread
 PROG:=\
 	client\
 	server\
