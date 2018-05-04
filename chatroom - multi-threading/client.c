@@ -50,6 +50,7 @@ int main(int argc, char **argv){
 	//print_status_report(socketfd);
 	
 	converse(socketfd);
+	return 0;
 }
 
 int get_active_socket(char *address, int port){
