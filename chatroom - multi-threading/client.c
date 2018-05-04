@@ -125,6 +125,7 @@ void converse(int socket){
 			if(bytesRead + 1 > MAX_MESSAGE_LENGTH) {
 				printf("message is too long, please break and resend messages of max %d characters\n", MAX_MESSAGE_LENGTH - 1);
 				fflush(stdout);
+				while ((getchar()) != '\n');
 				continue;
 			}
 			if(strncmp(stdinbuff, EXIT_TOKEN, strlen(EXIT_TOKEN)) == 0){
