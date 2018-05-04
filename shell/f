@@ -1,0 +1,8 @@
+Makefile
+f
+shell
+shell.c
+nielsuissa  staff     75 Mar  1 12:21 Makefile
+-rw-r--r--  1 danielsuissa  staff      0 Mar 13 20:00 f
+-rwxr-xr-x  1 danielsuissa  staff  14868 Mar 14 14:12 shell
+-rw-r--r--@ 1 danielsuissa  staff   8204 Mar 14 14:12 shell.c
