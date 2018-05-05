@@ -94,11 +94,11 @@ void converse(int socket){
 			fflush(stdout);
 		}
 		if(FD_ISSET(STDIN_FILENO, &input_set)){
-			if((bytesRead = read(STDIN_FILENO, stdinbuff, MAX_MESSAGE_LENGTH)) == -1) error_out("cannot read from stdin");
-			if(bytesRead + 1 > MAX_MESSAGE_LENGTH) { // bytes + 1 because we want to ensure a newline is there
-				printf("message is too long, please break and resend messages of max %d characters (%d characters typed)\n", MAX_MESSAGE_LENGTH - 1, bytesRead -1 );
+			if((bytesRead = read(STDIN_FILENO, stdinbuff, MAX_MESSAGE_LENGTH + 1)) == -1) error_out("cannot read from stdin");
+			if(bytesRead > MAX_MESSAGE_LENGTH) { // >= beause we want to ensure a newline is there
+				printf("message is too long, please break and resend messages of max %d characters\n", MAX_MESSAGE_LENGTH - 1);
 				fflush(stdout);
-				if(bytesRead != MAX_MESSAGE_LENGTH){
+				if(stdinbuff[bytesRead-1] != '\n'){
 					while (getchar() != '\n');
 				}
 				continue;
@@ -106,7 +106,6 @@ void converse(int socket){
 			if(strncmp(stdinbuff, EXIT_TOKEN, strlen(EXIT_TOKEN)) == 0){
 				break;
 			}
-			DEBUG fprintf(stderr, "DEBUG\tWriting to socket... \n");
 			if((write(socket, stdinbuff, strlen(stdinbuff))) == -1) error_out("could not write to socket");
 		}
 	}
