@@ -16,14 +16,12 @@
 int get_active_socket(char *address, int port); //set up an active socket conneted to a server with the provided address and port
 void print_status_report(int socketfd); //get clients-status report from the server and print it to stdin
 void converse(int socket);// given a socket, repeatedly prompt the user for input to send & read from socket data from other end
-void close_socket_and_exit(int sig);
 
 int socketfd = -1;
 
 int main(int argc, char **argv){
 	
 	//validate arguments
-
 	if(argc < 2) error_out("User name must be provided");
 	if(strlen(argv[1]) + 1 > MAX_NAME_LENGTH) error_out("name provided is too long");
 	long port = DEFAULT_PORT;
@@ -45,9 +43,6 @@ int main(int argc, char **argv){
 	//report client's name name
 	DEBUG fprintf(stderr, "DEBUG\treporting my name \n");
 	if(write(socketfd, argv[1], strlen(argv[1]) + 1) == -1) error_out("could not write name to socket");
-	
-	//get status and print 
-	//print_status_report(socketfd);
 	
 	converse(socketfd);
 	return 0;
@@ -109,19 +104,12 @@ void converse(int socket){
 				continue;
 			}
 			if(strncmp(stdinbuff, EXIT_TOKEN, strlen(EXIT_TOKEN)) == 0){
-				close(socket);
 				break;
 			}
 			DEBUG fprintf(stderr, "DEBUG\tWriting to socket... \n");
 			if((write(socket, stdinbuff, strlen(stdinbuff))) == -1) error_out("could not write to socket");
 		}
 	}
+	close(socket);
 	
-}
-
-void close_socket_and_exit(int sig){
-	if(socketfd != -1){
-		close(socketfd);
-	}
-	exit(1);
 }

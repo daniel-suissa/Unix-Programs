@@ -242,7 +242,7 @@ void broadcast(char *sender_name, char *text, d_client *sender){
 		if(cursor != sender){ //do not broadcast to the sender of the message
 			if ((bytes_written = write(cursor->socket, message_buffer, strlen(message_buffer))) == -1) error_out("broadcast error");
 			if (bytes_written == 0){
-				DEBUG fprintf(stderr, "client exitted\n"); // TODO: test if this can happen and print apt message
+				DEBUG fprintf(stderr, "client exitted\n");
 			}
 		}
 		cursor = cursor->next;
