@@ -1,10 +1,9 @@
 
 #include <signal.h>
-#define MAX_MESSAGE_LENGTH 30 //this has to be >= 30 
+#define MAX_MESSAGE_LENGTH 30 //this has to be >= 30 because of some of the server messages
 #define MAX_NAME_LENGTH 5
 #define MAX_TOTAL_LENGTH MAX_MESSAGE_LENGTH + MAX_NAME_LENGTH + 2 //includes a colon and a white space
 #define DEFAULT_PORT 5197
-#define END_OF_STATUS_TOKEN "ST_END"
 #define DEBUGON 1
 #define DEBUG if(DEBUGON)
 
