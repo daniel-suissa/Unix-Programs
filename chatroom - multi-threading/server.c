@@ -1,4 +1,3 @@
-//TODO: consider having a MAX_MESAGES value and use cond varaible to stop clients from enqueuing messages
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -35,25 +34,29 @@ typedef struct message message;
 void *client_listener(void *uncasted_client_ptr); // accepts and dequeues clients messages. adds and removes the client from the client list
 void *message_clearer(void *arg); //dequeues messages from the queue and broadcasts them to clients
 message *enqueue_message(char *message, char *sender_name, d_client *sender); //add a message to the back of the queue. returns enqueued message struct
+message *enqueue_message_safe(char *message, char *sender_name, d_client *sender); //locks before calling enqueue_message, then unlocks
 message *dequeue_message(); //returns and removes a message from the front of the queue. returns NULL on failure
 void broadcast(char *sender_name, char *text, d_client *sender); //sends a foramtted message to all clients except for the sender
 void free_message(message* a_message); //free up message's allocated memory and the message itself
 d_client* add_client(int socket); //adds a client to the client list. returns the allocated client struct or NULL if failed
+d_client* add_client_safe(int socket); //locks before calling add_client, then unlocks
 void remove_client(d_client* client); //removes a client from the list and frees it
+void remove_client_safe(d_client* client); //locks before calling remove_client, then unlocks
 int report_clients(int socket); //report existing connected clients and writes them to the socket. returns 0 on success and -1 on failure
+int report_clients_safe(int socket); //locks before calling report_clients, then unlocks
 int get_passive_socket(int port); //// set up a passive socket that listens to new connections on port
 
 //globals
 
-	//clients: 	hd <--> cl1 <--> cl2 <--> tl
+//clients: 	hd <--> cl1 <--> cl2 <--> tl
 d_client client_head = {-1, "HEAD", NULL,NULL};
 d_client client_tail = {-1, "TAIL", NULL, &client_head};
 
-	//messages: back (where things are pushed) <--> msg1 <--> msg2 <--> msg3 <--> front (where things are pooped)
+//messages: back (where things are pushed) <--> msg1 <--> msg2 <--> msg3 <--> front (where things are pooped)
 message front_of_message_queue = {NULL, NULL, NULL, NULL, NULL};
 message back_of_message_queue = {NULL, NULL, NULL, &front_of_message_queue, NULL};
 
-	//locks and conds
+//mutexes and condition variables
 pthread_mutex_t clients_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t messages_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t message_cond = PTHREAD_COND_INITIALIZER;
@@ -87,16 +90,11 @@ int main(int argc, char **argv){
 	pthread_t new_client_tid;
 	d_client *new_client_ptr;
 	while ( (active_socket = accept(passive_socket, NULL, NULL)) >= 0){
-		pthread_mutex_lock(&clients_mutex);
-		//-----critical region starts------//
-		new_client_ptr = add_client(active_socket);
-		//-----critical region ends------//
-		pthread_mutex_unlock(&clients_mutex);
+		new_client_ptr = add_client_safe(active_socket);
 		if (new_client_ptr == NULL) error_out("error adding a client");
 		if (pthread_create(&new_client_tid, NULL, client_listener, (void*)new_client_ptr) != 0) error_out("could not add a client");
 	}
 
-	//TODO: free 
 	return 0;
 }
 
@@ -115,23 +113,12 @@ void *client_listener(void *uncasted_client_ptr){
 	printf("%s entered the chat room \n", client->name);
 
 	//send status
-	//-----critical region starts------//
-	pthread_mutex_lock(&messages_mutex);
-	if (report_clients(client->socket) == -1) error_out("could not report status to client");
-	pthread_mutex_unlock(&messages_mutex);
-	//-----critical region ends------//
+	if (report_clients_safe(client->socket) == -1) error_out("could not report status to client");
 
 	message *next_message;
 	//first message enqueued is the one notifying that the client entered
 	sprintf(message_buffer, "%s entered the chat room \n", client->name);
-
-	//-----critical region starts------//
-	pthread_mutex_lock(&messages_mutex);
-	next_message = enqueue_message(message_buffer, "server", client);
-	pthread_cond_signal(&message_cond);
-	pthread_mutex_unlock(&messages_mutex);
-	//-----critical region ends------//
-
+	next_message = enqueue_message_safe(message_buffer, "server", client);
 	if (next_message == NULL) error_out("error enqueuing a message");
 
 	//read client messages
@@ -143,12 +130,7 @@ void *client_listener(void *uncasted_client_ptr){
 			break;
 		}
 		//add message to the queue
-		//-----critical region starts------//
-		pthread_mutex_lock(&messages_mutex);
-		next_message = enqueue_message(message_buffer, client->name, client);
-		pthread_cond_signal(&message_cond);
-		pthread_mutex_unlock(&messages_mutex);
-		//-----critical region ends------//
+		next_message = enqueue_message_safe(message_buffer, client->name, client);
 		if (next_message == NULL) error_out("error enqueuing a message");
 
 	}
@@ -157,18 +139,10 @@ void *client_listener(void *uncasted_client_ptr){
 	//last message enqueued is the one notifying that the client left
 	memset(&message_buffer, 0, MAX_MESSAGE_LENGTH);
 	sprintf(message_buffer, "%s left the chat room \n", client->name);
-	
-	//-----critical region starts------//
-	pthread_mutex_lock(&messages_mutex);
-	next_message = enqueue_message(message_buffer, "server", client);
-	pthread_cond_signal(&message_cond);
-	pthread_mutex_unlock(&messages_mutex);
-	//-----critical region ends------//
+	next_message = enqueue_message_safe(message_buffer, "server", client);
 
 	//remove the client from the linked list & free the client ptr
-	//-----critical region starts------//
-	remove_client(client);
-	//-----critical region ends------//
+	remove_client_safe(client);
 	return NULL;
 }
 
@@ -221,6 +195,13 @@ message *enqueue_message(char *message_text, char *sender_name, d_client *sender
 	return new_message;
 }
 
+message *enqueue_message_safe(char *message_text, char *sender_name, d_client *sender){
+	pthread_mutex_lock(&messages_mutex);
+	message* res = enqueue_message(message_text, sender_name, sender);
+	pthread_cond_signal(&message_cond);
+	pthread_mutex_unlock(&messages_mutex);
+	return res;
+}
 message *dequeue_message(){
 	DEBUG fprintf(stderr, "DEBUG\tdequeuing a message\n");
 	message *last_message = front_of_message_queue.prev;
@@ -282,6 +263,13 @@ d_client* add_client(int socket){
 	return new_client;
 }
 
+d_client* add_client_safe(int socket){
+	pthread_mutex_lock(&clients_mutex);
+	d_client* new_client_ptr = add_client(socket);
+	pthread_mutex_unlock(&clients_mutex);
+	return new_client_ptr;
+}
+
 void remove_client(d_client* client){
 	//remove from the list
 	client->next->prev = client->prev;
@@ -290,6 +278,11 @@ void remove_client(d_client* client){
 	free(client);
 }
 
+void remove_client_safe(d_client* client){
+	pthread_mutex_lock(&clients_mutex);
+	remove_client(client);
+	pthread_mutex_unlock(&clients_mutex);
+}
 int report_clients(int socket){
 	DEBUG fprintf(stderr, "DEBUG\treporting status to clients\n"); 
 	d_client *curr_client = client_head.next;
@@ -306,6 +299,12 @@ int report_clients(int socket){
 		curr_client = curr_client->next;
 	}
 	return 0;
+}
+int report_clients_safe(int socket){
+	pthread_mutex_lock(&messages_mutex);
+	int res = report_clients(socket);
+	pthread_mutex_unlock(&messages_mutex);
+	return res;
 }
 
 int get_passive_socket(int port){
