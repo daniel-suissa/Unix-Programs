@@ -1,6 +1,4 @@
 //TODO: consider having a MAX_MESAGES value and use cond varaible to stop clients from enqueuing messages
-//TODO: strlen doesnt incude the \0 char 
-//I'm working on: reporting status causes shananigans
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -291,49 +289,6 @@ void remove_client(d_client* client){
 	if (close(client->socket)) error_out("error closing socket");
 	free(client);
 }
-
-/*
-int report_clients(int socket){
-	DEBUG fprintf(stderr, "DEBUG\treporting status to clients\n"); 
-	d_client *curr_client = client_head.next;
-	char status_report[MAX_TOTAL_LENGTH];
-	memset(&status_report, '\0', MAX_TOTAL_LENGTH);
-	int i = 0;
-
-	DEBUG fprintf(stderr, "DEBUG\tcurr client name: %s\n", curr_client->name); 
-	strcpy(status_report + i, curr_client->name);
-	i += strlen(curr_client->name);
-	if(curr_client == client_tail.prev){
-		strcpy(status_report + (i++), "\n");
-	}
-	else {
-		strcpy(status_report + i, ", ");
-		i += 2;
-	}
-	curr_client = curr_client->next;
-	while (curr_client != &client_tail){
-		if(i >= MAX_TOTAL_LENGTH && curr_client != client_tail.prev){
-			if(write(socket, status_report, MAX_TOTAL_LENGTH) == -1) return -1;
-			memset(&status_report, '\0', MAX_TOTAL_LENGTH);
-		}
-		DEBUG fprintf(stderr, "DEBUG\tcurr client name: %s\n", curr_client->name); 
-		strcpy(status_report + i, curr_client->name);
-		i += strlen(curr_client->name);
-		if(curr_client == client_tail.prev){
-			strcpy(status_report + (i++), "\n");
-		}
-		else {
-			strcpy(status_report + i, ", ");
-			i += 2;
-		}
-		curr_client = curr_client->next;
-	}
-	DEBUG fprintf(stderr, "DEBUG\tstatus: %s\n", status_report); 
-	if(write(socket, status_report, strlen(status_report)) == -1) return -1;
-	if(write(socket, END_OF_STATUS_TOKEN, strlen(END_OF_STATUS_TOKEN)) == -1) return -1;
-	return 0;
-
-}*/
 
 int report_clients(int socket){
 	DEBUG fprintf(stderr, "DEBUG\treporting status to clients\n"); 

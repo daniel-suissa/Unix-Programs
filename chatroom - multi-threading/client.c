@@ -67,28 +67,6 @@ int get_active_socket(char *address, int port){
     return socketfd;
 }
 
-/*
-void print_status_report(int socketfd){
-	char participants[MAX_NAME_LENGTH + MAX_MESSAGE_LENGTH + 2];
-	int bytes_read = 0;
-	int len_of_status_token = strlen(END_OF_STATUS_TOKEN);
-	
-	printf("Current participants in the conversation:\n");
-	while(1){
-		if ((bytes_read = read(socketfd, participants, MAX_NAME_LENGTH + MAX_MESSAGE_LENGTH + 2)) == -1) error_out("could not get participants");
-		if(strcmp(participants + bytes_read - len_of_status_token, END_OF_STATUS_TOKEN) == 0 ){
-			participants[bytes_read - len_of_status_token] = '\0';
-			printf("%s", participants);
-			fflush(stdout);
-			break;
-		}
-		printf("%s", participants);
-		fflush(stdout);
-
-		memset(&participants, '\0', MAX_NAME_LENGTH + MAX_MESSAGE_LENGTH + 2);	
-	}
-	DEBUG fprintf(stderr, "DEBUG\tstatus reported \n");
-}*/
 void converse(int socket){
 	char stdinbuff[MAX_MESSAGE_LENGTH];
 	char socketbuff[MAX_MESSAGE_LENGTH + MAX_NAME_LENGTH + 2];
@@ -122,16 +100,19 @@ void converse(int socket){
 		}
 		if(FD_ISSET(STDIN_FILENO, &input_set)){
 			if((bytesRead = read(STDIN_FILENO, stdinbuff, MAX_MESSAGE_LENGTH)) == -1) error_out("cannot read from stdin");
-			if(bytesRead + 1 > MAX_MESSAGE_LENGTH) {
-				printf("message is too long, please break and resend messages of max %d characters\n", MAX_MESSAGE_LENGTH - 1);
+			if(bytesRead + 1 > MAX_MESSAGE_LENGTH) { // bytes + 1 because we want to ensure a newline is there
+				printf("message is too long, please break and resend messages of max %d characters (%d characters typed)\n", MAX_MESSAGE_LENGTH - 1, bytesRead -1 );
 				fflush(stdout);
-				while ((getchar()) != '\n');
+				if(bytesRead != MAX_MESSAGE_LENGTH){
+					while (getchar() != '\n');
+				}
 				continue;
 			}
 			if(strncmp(stdinbuff, EXIT_TOKEN, strlen(EXIT_TOKEN)) == 0){
 				close(socket);
 				break;
 			}
+			DEBUG fprintf(stderr, "DEBUG\tWriting to socket... \n");
 			if((write(socket, stdinbuff, strlen(stdinbuff))) == -1) error_out("could not write to socket");
 		}
 	}
